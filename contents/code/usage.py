@@ -3,7 +3,9 @@
 
 import json
 import argparse
+import datetime
 import os
+import re
 import selectors
 import shutil
 import subprocess
@@ -23,7 +25,7 @@ def read_json(path):
 
 def save_json(path, data):
     try:
-        CACHE.mkdir(parents=True, exist_ok=True)
+        path.parent.mkdir(parents=True, exist_ok=True)
         temp = path.with_suffix(".tmp")
         temp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
         os.chmod(temp, 0o600)
@@ -145,9 +147,53 @@ def external_windows(snapshot):
     return windows
 
 
+def antigravity_limits():
+    """Read the official CLI's non-interactive, read-only /usage response."""
+    binary = shutil.which("agy") or str(Path.home() / ".local" / "bin" / "agy")
+    if not Path(binary).exists():
+        return []
+    try:
+        proc = subprocess.run(
+            [binary, "-p", "/usage", "--output-format", "json", "--print-timeout", "20s"],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            text=True, timeout=25, check=False,
+        )
+        if proc.returncode != 0:
+            return []
+        result = json.loads(proc.stdout)
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return []
+    if not isinstance(result, dict) or result.get("status") != "SUCCESS" or not isinstance(result.get("response"), str):
+        return []
+
+    names = {
+        ("Gemini Models", "Five Hour Limit Remaining"): "gemini-5h",
+        ("Gemini Models", "Weekly Limit Remaining"): "gemini-weekly",
+        ("Claude and GPT models", "Five Hour Limit Remaining"): "3p-5h",
+        ("Claude and GPT models", "Weekly Limit Remaining"): "3p-weekly",
+    }
+    windows = []
+    for line in result["response"].splitlines():
+        fields = line.split("\t")
+        if len(fields) != 4:
+            continue
+        name = names.get((fields[0].strip(), fields[1].strip()))
+        percent = re.fullmatch(r"(100(?:\.0+)?|\d{1,2}(?:\.\d+)?)%", fields[2].strip())
+        if not name or not percent:
+            continue
+        try:
+            reset = int(datetime.datetime.fromisoformat(fields[3].strip().replace("Z", "+00:00")).timestamp())
+        except ValueError:
+            continue
+        windows.append({"name": name, "used": round(100 - float(percent.group(1))),
+                        "resetsAt": reset})
+    return windows
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--antigravity-source", default="")
+    parser.add_argument("--force-refresh", action="store_true")
     args = parser.parse_args()
     now = int(time.time())
     codex = {"id": "codex", "name": "Codex", "state": "unavailable", "windows": [],
@@ -168,7 +214,7 @@ def main():
             codex["message"] = "Son alınan veri"
 
     claude = {"id": "claude", "name": "Claude", "state": "unavailable", "windows": [],
-              "message": "Claude oturumunda henüz limit verisi yok"}
+              "message": "Claude Code oturumunda ilk yanıttan sonra limit verisi görünür"}
     claude_data = read_json(CACHE / "claude.json")
     if isinstance(claude_data, dict):
         windows = windows_from_claude(claude_data.get("rate_limits") or {})
@@ -183,6 +229,16 @@ def main():
     external_path = (Path(args.antigravity_source).expanduser() if args.antigravity_source
                      else Path.home() / ".config" / "quota-panel" / "antigravity.json")
     external = read_json(external_path)
+    if not args.antigravity_source:
+        try:
+            cached_at = int(external.get("updatedAt") or external_path.stat().st_mtime) if isinstance(external, dict) else 0
+        except (OSError, TypeError, ValueError):
+            cached_at = 0
+        if args.force_refresh or now - cached_at >= 60:
+            fresh_windows = antigravity_limits()
+            if fresh_windows:
+                external = {"updatedAt": int(time.time()), "windows": fresh_windows}
+                save_json(external_path, external)
     windows = external_windows(external)
     if windows:
         try:

@@ -70,7 +70,7 @@ KCM.SimpleKCM {
 
     Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Claude" }
     QQC2.Label {
-        text: "Claude Code oturumu başladığında limitlerini widget'a iletmesi için durum satırı bağlantısını kur."
+        text: "Claude Code, ilk API yanıtından sonra limitlerini durum satırıyla widget'a iletir. Yenile düğmesi yeni Claude oturumu başlatmaz."
         wrapMode: Text.WordWrap
         Layout.fillWidth: true
     }
@@ -82,7 +82,7 @@ KCM.SimpleKCM {
 
     Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Antigravity" }
     QQC2.Label {
-        text: "Antigravity CLI resmî durum satırından kota verisini aktarabilir. CLI kurup aynı hesapla giriş yaptıktan sonra bağlantıyı kur."
+        text: "Antigravity CLI ile giriş yaptıktan sonra widget yenilemede /usage kotasını doğrudan sorgular. Eski CLI sürümleri için durum satırı bağlantısını da kurabilirsin."
         wrapMode: Text.WordWrap
         Layout.fillWidth: true
     }

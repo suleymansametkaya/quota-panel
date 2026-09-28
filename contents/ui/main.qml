@@ -128,12 +128,13 @@ PlasmoidItem {
         return "#74d5bb";
     }
 
-    function refresh() {
+    function refresh(force = false) {
         if (loading) return;
         loading = true;
         const source = String(plasmoid.configuration.antigravitySource || "");
         const command = "python3 '" + scriptPath.replace(/'/g, "'\\''")
-                        + "' --antigravity-source '" + source.replace(/'/g, "'\\''") + "'";
+                        + "' --antigravity-source '" + source.replace(/'/g, "'\\''") + "'"
+                        + (force ? " --force-refresh" : "");
         usageSource.connectSource(command);
     }
 
@@ -159,7 +160,7 @@ PlasmoidItem {
         repeat: true
         running: true
         triggeredOnStart: true
-        onTriggered: root.refresh()
+        onTriggered: root.refresh(false)
     }
 
     Timer {
@@ -248,7 +249,7 @@ PlasmoidItem {
                 PC3.ToolButton {
                     icon.name: "view-refresh"
                     enabled: !root.loading
-                    onClicked: root.refresh()
+                    onClicked: root.refresh(true)
                 }
                 PC3.ToolButton {
                     icon.name: "configure"
