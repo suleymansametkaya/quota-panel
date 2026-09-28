@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0">
+    <kcfgfile name=""/>
+    <group name="General">
+        <entry name="showCodex" type="Bool"><default>true</default></entry>
+        <entry name="showClaude" type="Bool"><default>true</default></entry>
+        <entry name="showAntigravity" type="Bool"><default>true</default></entry>
+        <entry name="hideUnavailable" type="Bool"><default>false</default></entry>
+        <entry name="showResetTime" type="Bool"><default>true</default></entry>
+        <entry name="showCredits" type="Bool"><default>true</default></entry>
+        <entry name="refreshMinutes" type="Int"><default>2</default></entry>
+        <entry name="warningThreshold" type="Int"><default>30</default></entry>
+        <entry name="ringProvider" type="String"><default>codex</default></entry>
+        <entry name="antigravitySource" type="String"><default></default></entry>
+    </group>
+</kcfg>
