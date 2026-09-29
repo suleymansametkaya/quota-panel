@@ -8,7 +8,32 @@ import org.kde.plasma.plasma5support as Plasma5Support
 
 KCM.SimpleKCM {
     id: page
+
+    // Plasma injects the whole applet configuration into each page. These
+    // values are not edited here; declaring them keeps page construction clean
+    // and lets the framework preserve them if this page is saved.
+    property var cfg_showCodex
+    property var cfg_showClaude
+    property var cfg_showAntigravity
+    property var cfg_hideUnavailable
+    property var cfg_showResetTime
+    property var cfg_showCredits
+    property var cfg_refreshMinutes
+    property var cfg_warningThreshold
+    property var cfg_ringProvider
+
     property alias cfg_antigravitySource: sourcePath.text
+
+    property var cfg_showCodexDefault
+    property var cfg_showClaudeDefault
+    property var cfg_showAntigravityDefault
+    property var cfg_hideUnavailableDefault
+    property var cfg_showResetTimeDefault
+    property var cfg_showCreditsDefault
+    property var cfg_refreshMinutesDefault
+    property var cfg_warningThresholdDefault
+    property var cfg_ringProviderDefault
+    property var cfg_antigravitySourceDefault
     property string resultMessage: "Bağlantılar denetleniyor…"
     readonly property string helperPath: decodeURIComponent(Qt.resolvedUrl("../code/connection.py").toString().replace("file://", ""))
 

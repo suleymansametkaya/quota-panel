@@ -17,6 +17,23 @@ KCM.SimpleKCM {
     property alias cfg_warningThreshold: warning.value
     property string cfg_ringProvider: "codex"
 
+    // Plasma passes every config key (and its generated Default value) to
+    // every config page. Accept the connection setting here so opening this
+    // page does not warn about an unused initial property.
+    property string cfg_antigravitySource: ""
+
+    // KConfig-generated defaults are only used by other configuration pages.
+    property var cfg_showCodexDefault
+    property var cfg_showClaudeDefault
+    property var cfg_showAntigravityDefault
+    property var cfg_hideUnavailableDefault
+    property var cfg_showResetTimeDefault
+    property var cfg_showCreditsDefault
+    property var cfg_refreshMinutesDefault
+    property var cfg_warningThresholdDefault
+    property var cfg_ringProviderDefault
+    property var cfg_antigravitySourceDefault
+
     Kirigami.FormLayout {
         anchors.left: parent.left
         anchors.right: parent.right
