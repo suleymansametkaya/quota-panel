@@ -2,12 +2,12 @@
 """User-initiated local connection actions for the quota widget."""
 
 import json
-import os
+import shlex
 import shutil
 import subprocess
 import sys
-import time
 from pathlib import Path
+from quota_io import atomic_write_json, backup_file
 
 
 def respond(message):
@@ -67,7 +67,7 @@ def setup_claude():
             respond("Claude'da farklı bir durum satırı var; üzerine yazılmadı.")
             return
         capture = Path(__file__).with_name("claude_capture.py")
-        new_status_line = {"type": "command", "command": f"python3 {capture}",
+        new_status_line = {"type": "command", "command": f"python3 {shlex.quote(str(capture))}",
                            "refreshInterval": 120}
         if data.get("statusLine") == new_status_line:
             respond("Claude bağlantısı zaten kurulu.")
@@ -75,13 +75,8 @@ def setup_claude():
         data["statusLine"] = new_status_line
         settings.parent.mkdir(parents=True, exist_ok=True)
         if settings.exists():
-            backup = settings.with_name(f"settings.quota-panel-backup-{int(time.time())}.json")
-            backup.write_bytes(settings.read_bytes())
-            os.chmod(backup, 0o600)
-        temp = settings.with_suffix(".quota-panel.tmp")
-        temp.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        os.chmod(temp, 0o600)
-        temp.replace(settings)
+            backup_file(settings, prefix="settings.quota-panel-backup-")
+        atomic_write_json(settings, data, indent=2)
         respond("Claude bağlantısı kuruldu; sonraki Claude Code oturumunda veri gelecek.")
     except (OSError, ValueError, TypeError) as error:
         respond(f"Claude bağlantısı kurulamadı: {error}")
@@ -127,7 +122,7 @@ def setup_antigravity_cli():
             respond("Antigravity CLI'da farklı bir durum satırı var; üzerine yazılmadı.")
             return
         capture = Path(__file__).with_name("antigravity_capture.py")
-        new_status_line = {"type": "command", "command": f"python3 {capture}",
+        new_status_line = {"type": "command", "command": f"python3 {shlex.quote(str(capture))}",
                            "enabled": True, "stack_with_default": True}
         if data.get("statusLine") == new_status_line:
             respond("Bağlantı kurulu. CLI'yi yeniden aç ve /usage çalıştır.")
@@ -135,13 +130,8 @@ def setup_antigravity_cli():
         data["statusLine"] = new_status_line
         settings.parent.mkdir(parents=True, exist_ok=True)
         if settings.exists():
-            backup = settings.with_name(f"settings.quota-panel-backup-{int(time.time())}.json")
-            backup.write_bytes(settings.read_bytes())
-            os.chmod(backup, 0o600)
-        temp = settings.with_suffix(".quota-panel.tmp")
-        temp.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        os.chmod(temp, 0o600)
-        temp.replace(settings)
+            backup_file(settings, prefix="settings.quota-panel-backup-")
+        atomic_write_json(settings, data, indent=2)
         respond("Bağlantı kuruldu. CLI'yi aç ve /usage çalıştır.")
     except (OSError, ValueError, TypeError) as error:
         respond(f"Antigravity CLI bağlantısı kurulamadı: {error}")

@@ -11,6 +11,7 @@ PlasmoidItem {
 
     property var snapshot: ({"providers": []})
     property bool loading: false
+    property string refreshError: ""
     property double nowMs: Date.now()
     readonly property var visibleProviders: (snapshot.providers || []).filter(provider => {
         if (provider.id === "codex" && !plasmoid.configuration.showCodex) return false
@@ -18,7 +19,10 @@ PlasmoidItem {
         if (provider.id === "antigravity" && !plasmoid.configuration.showAntigravity) return false
         return !plasmoid.configuration.hideUnavailable || (provider.windows || []).length > 0
     })
-    readonly property var topProvider: visibleProviders.length > 0 ? visibleProviders[0] : null
+    readonly property var topProvider: {
+        const withData = visibleProviders.find(provider => (provider.windows || []).length > 0);
+        return withData || (visibleProviders.length > 0 ? visibleProviders[0] : null);
+    }
     readonly property var ringData: {
         const selected = visibleProviders.find(provider => provider.id === plasmoid.configuration.ringProvider)
         return selected || visibleProviders.find(provider => (provider.windows || []).length > 0) || null
@@ -45,6 +49,14 @@ PlasmoidItem {
                 text: root.topProvider ? root.topProvider.name : "Yapay Zekâ Limitleri"
                 horizontalAlignment: Text.AlignHCenter
                 font.bold: true
+            }
+
+            PC3.Label {
+                visible: root.refreshError.length > 0
+                text: root.refreshError
+                color: "#ef7878"
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
             }
 
             Repeater {
@@ -79,7 +91,7 @@ PlasmoidItem {
         const weekly = windows.find(window => /haftalık|7 gün/i.test(window.name));
         const percent = window => Math.max(0, Math.min(100, 100 - window.used));
         const lines = [];
-        if (fiveHour) lines.push({label: "5 saatlik", remaining: percent(fiveHour)});
+        if (fiveHour) lines.push({label: "5 Saatlik", remaining: percent(fiveHour)});
         if (weekly && weekly !== fiveHour) lines.push({label: "Haftalık", remaining: percent(weekly)});
         if (lines.length === 0) {
             windows.slice(0, 2).forEach(window => lines.push({label: window.name, remaining: percent(window)}));
@@ -114,10 +126,10 @@ PlasmoidItem {
         const hours = Math.floor((totalMinutes % 1440) / 60);
         const minutes = totalMinutes % 60;
         const parts = [];
-        if (days > 0) parts.push(days + " gün");
-        if (hours > 0) parts.push(hours + " sa");
-        if (minutes > 0 || parts.length === 0) parts.push(minutes + " dk");
-        return parts.join(" ") + " kaldı";
+        if (days > 0) parts.push(days + " Gün");
+        if (hours > 0) parts.push(hours + " Saat");
+        if (minutes > 0 || parts.length === 0) parts.push(minutes + " Dakika");
+        return parts.join(" ") + " Kaldı";
     }
 
     function usageColor(used) {
@@ -128,12 +140,27 @@ PlasmoidItem {
         return "#74d5bb";
     }
 
+    function markRefreshFailure() {
+        refreshError = "Yenileme başarısız; önceki veriler gösteriliyor.";
+        const providers = (snapshot.providers || []).map(provider => {
+            if (provider.state !== "ok") return provider;
+            return Object.assign({}, provider, {state: "stale"});
+        });
+        snapshot = Object.assign({}, snapshot, {providers: providers});
+    }
+
     function refresh(force = false) {
         if (loading) return;
         loading = true;
+        refreshError = "";
         const source = String(plasmoid.configuration.antigravitySource || "");
+        const providers = [];
+        if (plasmoid.configuration.showCodex) providers.push("codex");
+        if (plasmoid.configuration.showClaude) providers.push("claude");
+        if (plasmoid.configuration.showAntigravity) providers.push("antigravity");
         const command = "python3 '" + scriptPath.replace(/'/g, "'\\''")
                         + "' --antigravity-source '" + source.replace(/'/g, "'\\''") + "'"
+                        + " --providers '" + providers.join(",") + "'"
                         + (force ? " --force-refresh" : "");
         usageSource.connectSource(command);
     }
@@ -145,12 +172,18 @@ PlasmoidItem {
         onNewData: (sourceName, data) => {
             disconnectSource(sourceName);
             root.loading = false;
-            if (data["exit code"] !== 0 || !data.stdout) return;
+            if (data["exit code"] !== 0 || !data.stdout) {
+                root.markRefreshFailure();
+                return;
+            }
             try {
                 const result = JSON.parse(data.stdout);
-                if (Array.isArray(result.providers)) root.snapshot = result;
+                if (!result || !Array.isArray(result.providers)) throw new Error("Eksik sağlayıcı listesi");
+                root.snapshot = result;
+                root.refreshError = "";
             } catch (error) {
                 console.warn("Quota Panel: veri ayrıştırılamadı", error);
+                root.markRefreshFailure();
             }
         }
     }
@@ -257,6 +290,14 @@ PlasmoidItem {
                 }
             }
 
+            PC3.Label {
+                visible: root.refreshError.length > 0
+                text: root.refreshError
+                color: "#ef7878"
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+
             Repeater {
                 model: root.visibleProviders
                 delegate: ColumnLayout {
@@ -294,7 +335,7 @@ PlasmoidItem {
                                     elide: Text.ElideRight
                                 }
                                 PC3.Label {
-                                    text: "%" + Math.max(0, 100 - modelData.used) + " kaldı"
+                                    text: "%" + Math.max(0, 100 - modelData.used) + " Kaldı"
                                     color: root.usageColor(modelData.used)
                                 }
                             }

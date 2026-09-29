@@ -3,26 +3,31 @@
 
 import datetime
 import json
-import os
+import math
 import sys
 import time
 from pathlib import Path
+from quota_io import atomic_write_json
 
 
 def reset_timestamp(value):
     if isinstance(value, (int, float)):
-        return int(value)
+        try:
+            timestamp = float(value)
+            return int(timestamp) if math.isfinite(timestamp) else None
+        except (OverflowError, ValueError):
+            return None
     if isinstance(value, str):
         try:
             return int(datetime.datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp())
-        except ValueError:
+        except (ValueError, OverflowError):
             return None
     return None
 
 
 def main():
     payload = json.load(sys.stdin)
-    quotas = payload.get("quota") or {}
+    quotas = (payload.get("quota") or {}) if isinstance(payload, dict) else {}
     if not isinstance(quotas, dict):
         return
     windows = []
@@ -30,15 +35,19 @@ def main():
         if not isinstance(details, dict):
             continue
         try:
-            remaining = max(0.0, min(1.0, float(details["remaining_fraction"])))
-        except (KeyError, TypeError, ValueError):
+            remaining = float(details["remaining_fraction"])
+        except (KeyError, TypeError, ValueError, OverflowError):
             continue
+        if not math.isfinite(remaining):
+            continue
+        remaining = max(0.0, min(1.0, remaining))
         window = {"name": str(name)[:80], "used": round((1 - remaining) * 100)}
         reset = reset_timestamp(details.get("reset_time"))
         if reset is None and details.get("reset_in_seconds") is not None:
             try:
-                reset = int(time.time() + float(details["reset_in_seconds"]))
-            except (TypeError, ValueError):
+                seconds = float(details["reset_in_seconds"])
+                reset = int(time.time() + seconds) if math.isfinite(seconds) else None
+            except (TypeError, ValueError, OverflowError):
                 pass
         if reset is not None:
             window["resetsAt"] = reset
@@ -48,12 +57,7 @@ def main():
         return
 
     target = Path.home() / ".config" / "quota-panel" / "antigravity.json"
-    target.parent.mkdir(parents=True, exist_ok=True)
-    temp = target.with_suffix(".tmp")
-    temp.write_text(json.dumps({"updatedAt": int(time.time()), "windows": windows},
-                               ensure_ascii=False), encoding="utf-8")
-    os.chmod(temp, 0o600)
-    temp.replace(target)
+    atomic_write_json(target, {"updatedAt": int(time.time()), "windows": windows})
     print("Antigravity · " + " · ".join(
         f"{item['name']} %{100 - item['used']}" for item in windows[:2]))
 
@@ -61,5 +65,5 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except (OSError, ValueError, TypeError):
+    except (OSError, ValueError, TypeError, OverflowError):
         print("Antigravity · kota verisi bekleniyor")

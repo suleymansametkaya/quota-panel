@@ -60,7 +60,7 @@ Ardından panelde **Araç Takımı Ekle → Yapay Zekâ Limitleri** yoluyla widg
 | --- | --- |
 | **Codex** | Codex CLI ile oturum açın. Widget, yerel CLI'nin `app-server` limit yanıtını okur. Gerekirse widget ayarlarındaki **Codex girişini aç** düğmesini kullanın. |
 | **Claude Code** | Widget ayarlarında **Claude bağlantısını kur** düğmesine basın. Claude Code oturumunda ilk API yanıtından sonra durum satırı kullanım verisini yerel önbelleğe aktarır. Widget'ın Yenile düğmesi bu oturumdan bağımsız yeni kota isteği göndermez. |
-| **Antigravity CLI** | CLI ile oturum açın. Widget, yenilemede CLI'nın salt okunur `/usage` komutundan güncel kotayı alır. Eski CLI sürümleri için **Antigravity CLI bağlantısını kur** düğmesiyle durum satırı aktarımını kullanabilirsiniz. Alternatif olarak kota verisi üreten bir JSON dosyası seçebilirsiniz; özel dosya seçildiğinde güncelleme o dosyayı üreten entegrasyona bağlıdır. |
+| **Antigravity CLI** | CLI ile oturum açın. Widget, CLI'nın salt okunur `/usage` komutunu en fazla dakikada bir çalıştırır; aradaki yenilemeler önbelleği kullanır. Eski CLI sürümleri için **Antigravity CLI bağlantısını kur** düğmesiyle durum satırı aktarımını kullanabilirsiniz. Alternatif olarak kota verisi üreten bir JSON dosyası seçebilirsiniz; özel dosya seçildiğinde güncelleme o dosyayı üreten entegrasyona bağlıdır. |
 
 Bağlantı durumu ve gösterilecek servisler widget'ın **Ayarlar** sayfasından yönetilir. Bir serviste veri görünmüyorsa önce aynı sayfada bağlantı durumunu denetleyin, ardından widget'ın yenile düğmesini kullanın.
 
@@ -122,7 +122,7 @@ Then add **Yapay Zekâ Limitleri** from the panel's **Add Widgets** menu. The wi
 | --- | --- |
 | **Codex** | Sign in with the Codex CLI. The widget reads rate limits from the local CLI's `app-server`. Its settings page can open the Codex login flow. |
 | **Claude Code** | Select **Claude bağlantısını kur** in the widget settings. After the first API response in a Claude Code session, the status line sends usage data to a local cache. The widget's refresh button cannot request a new Claude quota independently of that session. |
-| **Antigravity CLI** | Sign in to the CLI. On refresh, the widget reads current quota through the CLI's read-only `/usage` command. For older CLI versions, **Antigravity CLI bağlantısını kur** enables status-line capture. You can also select a JSON quota file produced by another integration; refreshing a custom file depends on that integration. |
+| **Antigravity CLI** | Sign in to the CLI. The widget runs the CLI's read-only `/usage` command at most once per minute and uses the cache between refreshes. For older CLI versions, **Antigravity CLI bağlantısını kur** enables status-line capture. You can also select a JSON quota file produced by another integration; refreshing a custom file depends on that integration. |
 
 Use the widget's **Settings** page to check connection status and choose visible services. If usage data is missing, check the connection there and refresh the widget.
 
