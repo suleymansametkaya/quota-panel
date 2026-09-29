@@ -13,6 +13,8 @@ PlasmoidItem {
     property bool loading: false
     property string refreshError: ""
     property double nowMs: Date.now()
+    readonly property bool english: plasmoid.configuration.language === "en"
+    readonly property string appTitle: text("Yapay Zekâ Limitleri", "AI Quota Limits")
     readonly property var visibleProviders: (snapshot.providers || []).filter(provider => {
         if (provider.id === "codex" && !plasmoid.configuration.showCodex) return false
         if (provider.id === "claude" && !plasmoid.configuration.showClaude) return false
@@ -31,7 +33,7 @@ PlasmoidItem {
                                          ? Math.max(0, 100 - ringData.windows[0].used) : -1
     readonly property string scriptPath: decodeURIComponent(Qt.resolvedUrl("../code/usage.py").toString().replace("file://", ""))
 
-    Plasmoid.title: "Yapay Zekâ Limitleri"
+    Plasmoid.title: root.appTitle
     Plasmoid.icon: "view-statistics"
     toolTipMainText: ""
     toolTipSubText: ""
@@ -46,7 +48,7 @@ PlasmoidItem {
 
             PC3.Label {
                 Layout.fillWidth: true
-                text: root.topProvider ? root.topProvider.name : "Yapay Zekâ Limitleri"
+                text: root.topProvider ? root.providerName(root.topProvider) : root.appTitle
                 horizontalAlignment: Text.AlignHCenter
                 font.bold: true
             }
@@ -80,21 +82,68 @@ PlasmoidItem {
 
             PC3.Label {
                 visible: !root.topProvider || root.tooltipWindows(root.topProvider).length === 0
-                text: "Limit verisi bekleniyor"
+                text: root.text("Limit verisi bekleniyor", "Waiting for quota data")
             }
         }
     }
 
+    function text(turkish, englishText) {
+        return english ? englishText : turkish;
+    }
+
+    function providerName(provider) {
+        if (english && provider.id === "claude") return "Claude Code";
+        return provider.name;
+    }
+
+    function percentLabel(remaining) {
+        return english ? remaining + "% remaining" : "%" + remaining + " Kaldı";
+    }
+
+    function windowLabel(name) {
+        const translations = {
+            "Codex · 5 saat": "Codex · 5 hours",
+            "Codex · Haftalık": "Codex · Weekly",
+            "5 Saatlik": "5-hour",
+            "Haftalık": "Weekly",
+            "Gemini · 5 Saat": "Gemini · 5 hours",
+            "Gemini · Haftalık": "Gemini · Weekly",
+            "Claude ve OpenAI Modelleri · 5 Saat": "Claude & OpenAI Models · 5 hours",
+            "Claude ve OpenAI Modelleri · Haftalık": "Claude & OpenAI Models · Weekly",
+            "Diğer Modeller · 5 Saat": "Claude & OpenAI Models · 5 hours",
+            "Diğer Modeller · Haftalık": "Claude & OpenAI Models · Weekly"
+        };
+        if (english) return translations[name] || name;
+        if (name === "Diğer Modeller · 5 Saat") return "Claude ve OpenAI Modelleri · 5 Saat";
+        if (name === "Diğer Modeller · Haftalık") return "Claude ve OpenAI Modelleri · Haftalık";
+        return name;
+    }
+
+    function messageText(message) {
+        if (!english) return message;
+        const translations = {
+            "Veri alınamadı": "Usage data unavailable",
+            "Son alınan veri": "Last known data",
+            "Claude Code oturumunda ilk yanıttan sonra limit verisi görünür": "Quota appears after Claude Code's first response",
+            "Son Claude oturumundan": "From the last Claude session",
+            "CLI oturumundan henüz kota verisi gelmedi": "No quota data received from the CLI session yet",
+            "Son Antigravity oturumundan": "From the last Antigravity session",
+            "Kullanım verisi yok": "No usage data",
+            "Süre bilinmiyor": "Duration unknown"
+        };
+        return translations[message] || message;
+    }
+
     function tooltipWindows(provider) {
         const windows = provider.windows || [];
-        const fiveHour = windows.find(window => /5 saat|5s/i.test(window.name));
-        const weekly = windows.find(window => /haftalık|7 gün/i.test(window.name));
+        const fiveHour = windows.find(window => /5 saat|5s|5 hour/i.test(window.name));
+        const weekly = windows.find(window => /haftalık|7 gün|weekly/i.test(window.name));
         const percent = window => Math.max(0, Math.min(100, 100 - window.used));
         const lines = [];
-        if (fiveHour) lines.push({label: "5 Saatlik", remaining: percent(fiveHour)});
-        if (weekly && weekly !== fiveHour) lines.push({label: "Haftalık", remaining: percent(weekly)});
+        if (fiveHour) lines.push({label: text("5 Saatlik", "5-hour"), remaining: percent(fiveHour)});
+        if (weekly && weekly !== fiveHour) lines.push({label: text("Haftalık", "Weekly"), remaining: percent(weekly)});
         if (lines.length === 0) {
-            windows.slice(0, 2).forEach(window => lines.push({label: window.name, remaining: percent(window)}));
+            windows.slice(0, 2).forEach(window => lines.push({label: windowLabel(window.name), remaining: percent(window)}));
         }
         return lines;
     }
@@ -111,8 +160,9 @@ PlasmoidItem {
         if (!timestamp) return "";
         const date = new Date(timestamp);
         if (isNaN(date.getTime())) return "";
-        const months = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
-                        "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+        const months = english
+            ? ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+            : ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
         const pad = number => ("0" + number).slice(-2);
         return date.getDate() + " " + months[date.getMonth()] + " "
                + pad(date.getHours()) + ":" + pad(date.getMinutes());
@@ -121,15 +171,15 @@ PlasmoidItem {
     function remainingTimeLabel(timestamp) {
         if (!timestamp) return "";
         const totalMinutes = Math.ceil((timestamp - nowMs) / 60000);
-        if (totalMinutes <= 0) return "Yenilendi";
+        if (totalMinutes <= 0) return text("Yenilendi", "Reset");
         const days = Math.floor(totalMinutes / 1440);
         const hours = Math.floor((totalMinutes % 1440) / 60);
         const minutes = totalMinutes % 60;
         const parts = [];
-        if (days > 0) parts.push(days + " Gün");
-        if (hours > 0) parts.push(hours + " Saat");
-        if (minutes > 0 || parts.length === 0) parts.push(minutes + " Dakika");
-        return parts.join(" ") + " Kaldı";
+        if (days > 0) parts.push(days + text(" Gün", days === 1 ? " day" : " days"));
+        if (hours > 0) parts.push(hours + text(" Saat", hours === 1 ? " hour" : " hours"));
+        if (minutes > 0 || parts.length === 0) parts.push(minutes + text(" Dakika", minutes === 1 ? " minute" : " minutes"));
+        return parts.join(" ") + text(" Kaldı", " left");
     }
 
     function usageColor(used) {
@@ -141,7 +191,7 @@ PlasmoidItem {
     }
 
     function markRefreshFailure() {
-        refreshError = "Yenileme başarısız; önceki veriler gösteriliyor.";
+        refreshError = text("Yenileme başarısız; önceki veriler gösteriliyor.", "Refresh failed; showing previous data.");
         const providers = (snapshot.providers || []).map(provider => {
             if (provider.state !== "ok") return provider;
             return Object.assign({}, provider, {state: "stale"});
@@ -274,7 +324,7 @@ PlasmoidItem {
             RowLayout {
                 Layout.fillWidth: true
                 PC3.Label {
-                    text: "Yapay Zekâ Limitleri"
+                    text: root.appTitle
                     font.bold: true
                     font.pixelSize: 17
                     Layout.fillWidth: true
@@ -309,13 +359,13 @@ PlasmoidItem {
                     RowLayout {
                         Layout.fillWidth: true
                         PC3.Label {
-                            text: modelData.name
+                            text: root.providerName(modelData)
                             font.bold: true
                             Layout.fillWidth: true
                         }
                         PC3.Label {
-                            text: modelData.state === "ok" ? "Canlı" :
-                                  modelData.state === "stale" ? "Eski veri" : "Veri yok"
+                            text: modelData.state === "ok" ? root.text("Canlı", "Live") :
+                                  modelData.state === "stale" ? root.text("Eski veri", "Stale data") : root.text("Veri yok", "No data")
                             opacity: 0.65
                             font.pixelSize: 11
                         }
@@ -330,12 +380,12 @@ PlasmoidItem {
                             RowLayout {
                                 Layout.fillWidth: true
                                 PC3.Label {
-                                    text: modelData.name
+                                    text: root.windowLabel(modelData.name)
                                     Layout.fillWidth: true
                                     elide: Text.ElideRight
                                 }
                                 PC3.Label {
-                                    text: "%" + Math.max(0, 100 - modelData.used) + " Kaldı"
+                                    text: root.percentLabel(Math.max(0, 100 - modelData.used))
                                     color: root.usageColor(modelData.used)
                                 }
                             }
@@ -358,7 +408,7 @@ PlasmoidItem {
                                 Layout.fillWidth: true
                                 spacing: 4
                                 PC3.Label {
-                                    text: "Yenilenme: " + root.resetDateLabel(resetRow.resetTime)
+                                    text: root.text("Yenilenme: ", "Resets: ") + root.resetDateLabel(resetRow.resetTime)
                                     Layout.fillWidth: true
                                     elide: Text.ElideRight
                                     opacity: 0.58
@@ -375,7 +425,7 @@ PlasmoidItem {
 
                     PC3.Label {
                         visible: !modelData.windows || modelData.windows.length === 0
-                        text: modelData.message || "Kullanım verisi yok"
+                        text: root.messageText(modelData.message || "Kullanım verisi yok")
                         opacity: 0.65
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
@@ -383,7 +433,7 @@ PlasmoidItem {
 
                     PC3.Label {
                         visible: plasmoid.configuration.showCredits && modelData.id === "codex" && modelData.resetCredits > 0
-                        text: modelData.resetCredits + " yenileme hakkı var"
+                        text: modelData.resetCredits + root.text(" yenileme hakkı var", " reset credits available")
                         opacity: 0.7
                         font.pixelSize: 11
                     }
@@ -399,7 +449,7 @@ PlasmoidItem {
 
                 PC3.Label {
                     visible: root.visibleProviders.length === 0
-                    text: root.loading ? "Limitler okunuyor…" : "Gösterilecek veri yok. Ayarlardan servisleri seç."
+                    text: root.loading ? root.text("Limitler okunuyor…", "Loading quotas…") : root.text("Gösterilecek veri yok. Ayarlardan servisleri seç.", "No data to show. Choose services in Settings.")
                     Layout.fillWidth: true
                 }
             }

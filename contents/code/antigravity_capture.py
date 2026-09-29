@@ -2,12 +2,11 @@
 """Capture only model quota fields from the official Antigravity CLI status line."""
 
 import datetime
-import json
 import math
 import sys
 import time
 from pathlib import Path
-from quota_io import atomic_write_json
+from quota_io import atomic_write_json, read_limited_json_stream
 
 
 def reset_timestamp(value):
@@ -26,7 +25,7 @@ def reset_timestamp(value):
 
 
 def main():
-    payload = json.load(sys.stdin)
+    payload = read_limited_json_stream(sys.stdin)
     quotas = (payload.get("quota") or {}) if isinstance(payload, dict) else {}
     if not isinstance(quotas, dict):
         return

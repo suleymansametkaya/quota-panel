@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 """Claude Code statusLine receiver: cache quota fields only, never credentials."""
 
-import json
 import math
 import os
 import sys
 import time
 from pathlib import Path
-from quota_io import atomic_write_json
+from quota_io import atomic_write_json, read_limited_json_stream
 
 
 try:
-    incoming = json.load(sys.stdin)
+    incoming = read_limited_json_stream(sys.stdin)
     rate_limits = (incoming.get("rate_limits") or {}) if isinstance(incoming, dict) else {}
     safe = {}
     if isinstance(rate_limits, dict):

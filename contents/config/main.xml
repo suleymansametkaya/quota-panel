@@ -11,6 +11,7 @@
         <entry name="refreshMinutes" type="Int"><default>2</default></entry>
         <entry name="warningThreshold" type="Int"><default>30</default></entry>
         <entry name="ringProvider" type="String"><default>codex</default></entry>
+        <entry name="language" type="String"><default>tr</default></entry>
         <entry name="antigravitySource" type="String"><default></default></entry>
     </group>
 </kcfg>

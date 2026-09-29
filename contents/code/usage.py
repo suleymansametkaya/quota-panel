@@ -13,7 +13,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from quota_io import atomic_write_json
+from quota_io import MAX_JSON_BYTES, atomic_write_json, parse_limited_json, read_limited_json
 
 CACHE = Path(os.environ.get("XDG_CACHE_HOME", str(Path.home() / ".cache"))) / "quota-panel"
 ANTIGRAVITY_MIN_REFRESH_SECONDS = 60
@@ -22,9 +22,40 @@ MAX_CODEX_PROTOCOL_LINE_BYTES = 1024 * 1024
 
 def read_json(path):
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return read_limited_json(path)
     except (OSError, ValueError):
         return None
+
+
+def run_bounded_stdout(command, *, timeout, output_limit):
+    """Run a child while bounding captured stdout as well as execution time."""
+    proc = subprocess.Popen(
+        command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL, bufsize=0,
+    )
+    selector = selectors.DefaultSelector()
+    output = bytearray()
+    deadline = time.monotonic() + timeout
+    try:
+        selector.register(proc.stdout, selectors.EVENT_READ)
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(command, timeout)
+            if not selector.select(remaining):
+                raise subprocess.TimeoutExpired(command, timeout)
+            chunk = os.read(proc.stdout.fileno(), min(65536, output_limit + 1 - len(output)))
+            if not chunk:
+                return proc.wait(timeout=max(0, deadline - time.monotonic())), bytes(output)
+            output.extend(chunk)
+            if len(output) > output_limit:
+                raise ValueError("Provider output exceeds the size limit")
+    finally:
+        selector.close()
+        proc.stdout.close()
+        if proc.poll() is None:
+            proc.kill()
+        proc.wait()
 
 
 def save_json(path, data):
@@ -241,8 +272,8 @@ def external_windows(snapshot):
     if not isinstance(snapshot, dict) or not isinstance(snapshot.get("windows"), list):
         return []
     windows = []
-    labels = {"3p-5h": "Diğer Modeller · 5 Saat",
-              "3p-weekly": "Diğer Modeller · Haftalık",
+    labels = {"3p-5h": "Claude ve OpenAI Modelleri · 5 Saat",
+              "3p-weekly": "Claude ve OpenAI Modelleri · Haftalık",
               "gemini-5h": "Gemini · 5 Saat",
               "gemini-weekly": "Gemini · Haftalık"}
     for item in snapshot["windows"][:12]:
@@ -264,8 +295,8 @@ def external_windows(snapshot):
         windows.append(window)
     order = {"Gemini · 5 Saat": 0,
              "Gemini · Haftalık": 1,
-             "Diğer Modeller · 5 Saat": 2,
-             "Diğer Modeller · Haftalık": 3}
+             "Claude ve OpenAI Modelleri · 5 Saat": 2,
+             "Claude ve OpenAI Modelleri · Haftalık": 3}
     windows.sort(key=lambda window: order.get(window["name"], 4))
     return windows
 
@@ -276,15 +307,14 @@ def antigravity_limits():
     if not Path(binary).exists():
         return []
     try:
-        proc = subprocess.run(
+        returncode, output = run_bounded_stdout(
             [binary, "-p", "/usage", "--output-format", "json", "--print-timeout", "20s"],
-            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-            text=True, timeout=25, check=False,
+            timeout=25, output_limit=MAX_JSON_BYTES,
         )
-        if proc.returncode != 0:
+        if returncode != 0:
             return []
-        result = json.loads(proc.stdout)
-    except (OSError, ValueError, subprocess.TimeoutExpired):
+        result = parse_limited_json(output)
+    except (OSError, UnicodeError, ValueError, RecursionError, subprocess.TimeoutExpired):
         return []
     if not isinstance(result, dict) or result.get("status") != "SUCCESS" or not isinstance(result.get("response"), str):
         return []

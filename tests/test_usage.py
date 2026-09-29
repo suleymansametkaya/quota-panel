@@ -5,6 +5,7 @@ import json
 import sys
 import tempfile
 import unittest
+import subprocess
 from pathlib import Path
 from unittest import mock
 
@@ -58,6 +59,16 @@ class UsageParsingTests(unittest.TestCase):
             {"name": "Valid", "used": 42},
         ]})
         self.assertEqual(windows, [{"name": "Valid", "used": 42}])
+
+    def test_antigravity_model_group_uses_descriptive_claude_openai_label(self):
+        windows = usage.external_windows({"windows": [
+            {"name": "3p-weekly", "used": 40},
+            {"name": "3p-5h", "used": 20},
+        ]})
+        self.assertEqual(windows, [
+            {"name": "Claude ve OpenAI Modelleri · 5 Saat", "used": 20},
+            {"name": "Claude ve OpenAI Modelleri · Haftalık", "used": 40},
+        ])
 
     def test_cache_age_rejects_malformed_and_non_finite_timestamps(self):
         for value in ("broken", math.nan, math.inf, -1, True, None):
@@ -134,6 +145,23 @@ class UsageParsingTests(unittest.TestCase):
         windows = usage.windows_from_codex(snapshot)
         self.assertEqual(windows, [{"name": "Codex · 5 saat", "used": 25}])
         self.assertEqual(json.loads(json.dumps(windows, allow_nan=False)), windows)
+
+    def test_read_json_rejects_oversized_and_deep_inputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "quota.json"
+            source.write_bytes(b" " * (usage.MAX_JSON_BYTES + 1))
+            self.assertIsNone(usage.read_json(source))
+            source.write_text("[" * 2000 + "0" + "]" * 2000, encoding="utf-8")
+            self.assertIsNone(usage.read_json(source))
+
+    def test_bounded_child_output_accepts_normal_output_and_rejects_overflow(self):
+        command = [sys.executable, "-c", "import sys; sys.stdout.write('ok')"]
+        returncode, output = usage.run_bounded_stdout(command, timeout=2, output_limit=64)
+        self.assertEqual((returncode, output), (0, b"ok"))
+
+        overflow = [sys.executable, "-c", "import sys; sys.stdout.buffer.write(b'x' * 1024)"]
+        with self.assertRaises(ValueError):
+            usage.run_bounded_stdout(overflow, timeout=2, output_limit=64)
 
 
 if __name__ == "__main__":

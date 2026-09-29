@@ -1,4 +1,8 @@
-# Yapay Zekâ Limitleri · AI Quota Panel
+# Yapay Zekâ Limitleri · AI Quota Limits
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE).
 
 KDE Plasma 6 panelinde Codex, Claude Code ve Antigravity kullanım sınırlarını gösteren bir widget.
 
@@ -31,10 +35,10 @@ Uyarı eşiğini ayarlardan değiştirebilirsiniz. Sarı aralık, seçilen eşik
 ### Özellikler
 
 - Panelde seçtiğiniz servisin kalan kullanımını renkli bir halka ile gösterir. Üzerine gelince kısa limit özeti açılır.
-- Açılır pencerede servislerin 5 saatlik ve haftalık pencerelerini, kalan yüzdelerini, yenilenme tarih ve saatini ve kalan süreyi gösterir. Mevcutsa Codex yenileme hakları da görünür.
+- Açılır pencerede servislerin 5 saatlik ve haftalık pencerelerini, kalan yüzdelerini, yenilenme tarih ve saatini ve kalan süreyi gösterir. Antigravity'de “Claude ve OpenAI Modelleri” için ayrı limit pencereleri gösterilir. Mevcutsa Codex yenileme hakları da görünür.
 - Codex, Claude ve Antigravity servislerini ayrı ayrı gösterip gizleyebilirsiniz. Verisi olmayan servisleri gizleme seçeneği vardır.
+- **Görünüm → Dil** ayarından Türkçe ve İngilizce arasında geçiş yapabilirsiniz. İlk kurulum dili Türkçedir.
 - Yenileme aralığını, uyarı eşiğini ve panel halkasında izlenecek servisi ayarlayabilirsiniz. Uzun liste, görünür kaydırma çubuğu olmadan kaydırılabilir.
-- Arayüz Türkçedir. Bu README ayrıca İngilizce kullanım bilgisi içerir.
 
 ### Gereksinimler ve kurulum
 
@@ -62,7 +66,7 @@ Ardından panelde **Araç Takımı Ekle → Yapay Zekâ Limitleri** yoluyla widg
 | **Claude Code** | Widget ayarlarında **Claude bağlantısını kur** düğmesine basın. Claude Code oturumunda ilk API yanıtından sonra durum satırı kullanım verisini yerel önbelleğe aktarır. Widget'ın Yenile düğmesi bu oturumdan bağımsız yeni kota isteği göndermez. |
 | **Antigravity CLI** | CLI ile oturum açın. Widget, CLI'nın salt okunur `/usage` komutunu en fazla dakikada bir çalıştırır; aradaki yenilemeler önbelleği kullanır. Eski CLI sürümleri için **Antigravity CLI bağlantısını kur** düğmesiyle durum satırı aktarımını kullanabilirsiniz. Alternatif olarak kota verisi üreten bir JSON dosyası seçebilirsiniz; özel dosya seçildiğinde güncelleme o dosyayı üreten entegrasyona bağlıdır. |
 
-Bağlantı durumu ve gösterilecek servisler widget'ın **Ayarlar** sayfasından yönetilir. Bir serviste veri görünmüyorsa önce aynı sayfada bağlantı durumunu denetleyin, ardından widget'ın yenile düğmesini kullanın.
+Dil ve görünüm seçenekleri **Görünüm → Dil** sayfasından; bağlantı durumu ise **Bağlantılar** sayfasından yönetilir. Bir serviste veri görünmüyorsa önce bağlantı durumunu denetleyin, ardından widget'ın yenile düğmesini kullanın.
 
 ### Gizlilik
 
@@ -73,7 +77,7 @@ Kota bilgisi bu bilgisayardaki oturumlardan okunur. Widget hesap anahtarlarını
 
 <p align="center"><img src="docs/images/quota-panel-en.png" alt="English visual translation of the AI Quota Panel popup" width="300"></p>
 
-*English visual translation of the widget screenshot. The current widget interface is in Turkish; quota values and reset times vary by session.*
+*English visual translation of the widget. Select English in settings; quota values and reset times vary by session.*
 
 ### Panel ring
 
@@ -93,10 +97,10 @@ You can change the warning threshold in settings. Yellow covers the next 20 perc
 ### Features
 
 - A colored ring in the panel shows the remaining quota for the selected service. Hovering over it opens a compact summary.
-- The popup shows five-hour and weekly windows, remaining percentages, reset date and time, and time until reset. Codex reset credits appear when available.
+- The popup shows five-hour and weekly windows, remaining percentages, reset date and time, and time until reset. Antigravity's Claude and OpenAI model quotas have their own clearly named windows. Codex reset credits appear when available.
 - Show or hide Codex, Claude, and Antigravity independently. You can also hide services without data.
+- Select Turkish or English from **Appearance → Language** in the settings. Turkish is the default.
 - Configure the refresh interval, warning threshold, and service represented by the panel ring. Long lists remain scrollable without a visible scrollbar.
-- The widget interface is in Turkish; this README provides English setup instructions.
 
 ### Requirements and installation
 
@@ -114,17 +118,17 @@ To update an existing installation:
 kpackagetool6 -t Plasma/Applet -u .
 ```
 
-Then add **Yapay Zekâ Limitleri** from the panel's **Add Widgets** menu. The widget ID is `org.stark.quota-panel`.
+Then add **AI Quota Limits** from the panel's **Add Widgets** menu. The widget ID is `org.stark.quota-panel`.
 
 ### Connecting services
 
 | Service | Setup |
 | --- | --- |
 | **Codex** | Sign in with the Codex CLI. The widget reads rate limits from the local CLI's `app-server`. Its settings page can open the Codex login flow. |
-| **Claude Code** | Select **Claude bağlantısını kur** in the widget settings. After the first API response in a Claude Code session, the status line sends usage data to a local cache. The widget's refresh button cannot request a new Claude quota independently of that session. |
-| **Antigravity CLI** | Sign in to the CLI. The widget runs the CLI's read-only `/usage` command at most once per minute and uses the cache between refreshes. For older CLI versions, **Antigravity CLI bağlantısını kur** enables status-line capture. You can also select a JSON quota file produced by another integration; refreshing a custom file depends on that integration. |
+| **Claude Code** | Select **Set up Claude connection** in the widget's **Connections** settings. After the first API response in a Claude Code session, the status line sends usage data to a local cache. The widget's refresh button cannot request a new Claude quota independently of that session. |
+| **Antigravity CLI** | Sign in to the CLI. The widget runs the CLI's read-only `/usage` command at most once per minute and uses the cache between refreshes. For older CLI versions, **Set up Antigravity CLI** enables status-line capture. You can also select a JSON quota file produced by another integration; refreshing a custom file depends on that integration. |
 
-Use the widget's **Settings** page to check connection status and choose visible services. If usage data is missing, check the connection there and refresh the widget.
+Choose the interface language and visible services in **Appearance**; use **Connections** to check provider status. If usage data is missing, check the connection there and refresh the widget.
 
 ### Privacy
 

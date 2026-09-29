@@ -9,7 +9,8 @@ import sys
 CODE_DIR = Path(__file__).resolve().parents[1] / "contents" / "code"
 sys.path.insert(0, str(CODE_DIR))
 
-from quota_io import atomic_write_json, backup_file  # noqa: E402
+from quota_io import (MAX_JSON_BYTES, atomic_write_json, backup_file,
+                      read_limited_json_stream)  # noqa: E402
 
 
 class QuotaIOTests(unittest.TestCase):
@@ -36,6 +37,15 @@ class QuotaIOTests(unittest.TestCase):
             self.assertNotEqual(first, second)
             self.assertEqual(first.read_text(encoding="utf-8"), '{"keep": true}')
             self.assertEqual(stat.S_IMODE(first.stat().st_mode), 0o600)
+
+    def test_provider_json_stream_is_bounded_and_accepts_valid_input(self):
+        import io
+
+        self.assertEqual(read_limited_json_stream(io.BytesIO(b'{"quota": {}}')), {"quota": {}})
+        with self.assertRaises(ValueError):
+            read_limited_json_stream(io.BytesIO(b" " * (MAX_JSON_BYTES + 1)))
+        with self.assertRaises(ValueError):
+            read_limited_json_stream(io.BytesIO(b"[" * 65 + b"0" + b"]" * 65))
 
 
 if __name__ == "__main__":

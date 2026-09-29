@@ -5,6 +5,60 @@ import os
 import tempfile
 from pathlib import Path
 
+MAX_JSON_BYTES = 1024 * 1024
+MAX_JSON_DEPTH = 64
+
+
+def validate_json_nesting(text):
+    """Reject excessive JSON container nesting before invoking the parser."""
+    depth = 0
+    in_string = False
+    escaped = False
+    for char in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+        elif char == '"':
+            in_string = True
+        elif char in "[{":
+            depth += 1
+            if depth > MAX_JSON_DEPTH:
+                raise ValueError("JSON input is nested too deeply")
+        elif char in "]}":
+            depth = max(0, depth - 1)
+
+
+def parse_limited_json(data):
+    """Parse UTF-8 JSON only after its raw byte size has been bounded."""
+    if len(data) > MAX_JSON_BYTES:
+        raise ValueError("JSON input exceeds the size limit")
+    try:
+        text = data.decode("utf-8")
+        validate_json_nesting(text)
+        return json.loads(text)
+    except (RecursionError, UnicodeError) as error:
+        raise ValueError("JSON input is nested too deeply") from error
+
+
+def read_limited_json(path):
+    """Read at most one MiB from a JSON file, including user-selected sources."""
+    with Path(path).open("rb") as source:
+        data = source.read(MAX_JSON_BYTES + 1)
+    return parse_limited_json(data)
+
+
+def read_limited_json_stream(stream):
+    """Read bounded JSON from a provider status-line stream."""
+    binary_stream = getattr(stream, "buffer", stream)
+    data = binary_stream.read(MAX_JSON_BYTES + 1)
+    if isinstance(data, str):
+        data = data.encode("utf-8")
+    return parse_limited_json(data)
+
 
 def atomic_write_json(path, data, *, indent=None):
     """Write JSON through a unique mode-0600 temp file in the target directory."""
